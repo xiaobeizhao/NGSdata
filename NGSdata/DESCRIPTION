@@ -1,0 +1,28 @@
+Package: NGSdata
+Type: Package
+Version: 0.0.1
+Date: 2021-02-06 06:44:01 CST
+Title: Peripheral Tools for NGScopy
+Description: Peripheral Tools for Next-Generation Sequencing (NGS) data
+License: GPL (>=2)
+LazyLoad: TRUE
+NeedsCompilation: no
+URL: https://github.com/xiaobeizhao/NGSdata
+Repository: CRAN
+Depends:
+    R (>= 3.2.0)
+Imports:
+    methods,
+    parallel,
+    gtools,
+    data.table (>= 1.9.4),
+Suggests:
+    Xmisc (>= 0.2.1),
+Collate:
+    'ngsdata-internal.R'
+    'ngsdata-util.R'
+Authors@R: c(
+    person("Xiaobei", "Zhao", email="xiaobei_zhao@uthsc.edu",
+    role=c("aut", "cre", "cph"))
+    )
+Maintainer: Xiaobei Zhao <xiaobei_zhao@uthsc.edu>
