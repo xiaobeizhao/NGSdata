@@ -14,7 +14,8 @@
 ## ************************************************************************
 
 get_DEFAULT__pcThreads <- function(){
-  getOption("mc.cores", 2L)
+  ## 'mc.cores' > 1 is not supported on Windows
+  getOption("mc.cores", 1L)
 }
 
 

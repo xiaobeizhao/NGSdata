@@ -123,7 +123,7 @@ unittest.02__example <- function(){
     data.score=.data.score,
     by="chr",
     FUNC.SCORE=function(x){mean(x,na.rm=TRUE)},
-    pcThreads=2
+    pcThreads=get_DEFAULT__pcThreads()
   )
   
   tmp.mat <- data.as.matrix(
