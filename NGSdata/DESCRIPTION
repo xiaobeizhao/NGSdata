@@ -16,6 +16,8 @@ Imports:
     parallel,
     gtools,
     data.table (>= 1.9.4),
+    plyr,
+    reshape2
 Suggests:
     Xmisc (>= 0.2.1),
 Collate:

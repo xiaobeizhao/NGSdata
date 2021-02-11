@@ -10,6 +10,8 @@ import(Xmisc)
 
 
 importFrom(gtools,mixedsort)
+importFrom(plyr,ddply)
+importFrom(reshape2,acast)
 
 
 ##' ------------------------------------------------------------------------
