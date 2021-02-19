@@ -18,11 +18,16 @@ get_DEFAULT__pcThreads <- function(){
   getOption("mc.cores", 1L)
 }
 
+is.data.table.interval <- function(
+  x
+  ){
+  "data.table.interval" %in% class(x) & is.data.table(x)
+}
 
-##' .. content for \description{} (no empty lines) ..
+##' (TBA)
 ##'
 ##' Copied from package Xmisc (beta)
-##' @title 
+##' @title Convert data.table as `data.table.interval` object
 ##' @param x 
 ##' @param by 
 ##' @param extra.col.rm 
@@ -37,10 +42,15 @@ dt.as_interval <- function(
   which.col.end="end",
   extra.col.rm=FALSE
   ){
+  ret <- copy(x)
+  
+  if (is.data.table.interval(ret)){
+    return(ret)
+  }
+  
   if (missing(by)){
     by <- NULL
   }
-  ret <- copy(x)
   
   if (!is.data.table(ret)){
     setDT(ret)
@@ -56,16 +66,17 @@ dt.as_interval <- function(
   }
   ret[,start:=as.numeric(start)]
   ret[,end:=as.numeric(end)]
+  class(ret) <- unique(c("data.table.interval",class(ret)))
   return(ret)
 }
 
 
   
 
-##' .. content for \description{} (no empty lines) ..
+##' (TBA)
 ##'
-##' .. content for \details{} ..
-##' @title dt.sort_interval
+##' 
+##' @title Sort data.table.interval
 ##' @param x 
 ##' @param by 
 ##' @return data.table
@@ -87,13 +98,13 @@ dt.sort_interval <- function(
 
 
 
-##' .. content for \description{} (no empty lines) ..
+##' (TBA)
 ##'
-##' .. content for \details{} ..
-##' @title dt.merge_interval
+##' 
+##' @title Merge data.table.interval
 ##' @param x 
 ##' @param y 
-##' @param by character to grouped by, i.e. "chr", "refid"
+##' @param by character to grouped by, i.e. "refid", "chr"
 ##' @return data.table
 ##' @author Xiaobei Zhao
 ##' @examples
@@ -105,8 +116,8 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   y2 <- dt.sort_interval(y,by,...)
   
   ##
-  x2[,start1:=start+1]
-  y2[,start1:=start+1]
+  suppressWarnings(x2[,start1:=start+1])
+  suppressWarnings(y2[,start1:=start+1])
 
   ##
   setkeyv(x2,c(by,'start1','end'))
@@ -123,29 +134,12 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   ##
   tmp.names <- c("start.x","end.x","start.y","end.y")
   ans <- ans[,c(colnames(ans)[!colnames(ans)%in%tmp.names],tmp.names),with=FALSE]
+  ans[,size:=end-start]
   return(ans)
 }
 
 
 
-
-
-##' .. content for \description{} (no empty lines) ..
-##'
-##' .. content for \details{} ..
-##' @title To score `data.region` using `data.score`
-##' @param data.region 
-##' @param data.score 
-##' @param by 
-##' @param which.col.start 
-##' @param which.col.end 
-##' @param which.col.score 
-##' @param FUNC.SCORE 
-##' @param pcThreads 
-##' @param keepname 
-##' @param as.dt 
-##' @return 
-##' @author 
 .dt.score_interval <- function(
   data.region,
   data.score,
@@ -160,11 +154,13 @@ dt.merge_interval <- function(x,y,by=NULL,...){
 
   ##
   FUNC.SCORE,
+  score.weighted,
 
   ##
   pcThreads
   ){
   
+  which.col.size <- "size"
   
   if (is.null(data.region)){
     data.region <- data.table()
@@ -195,9 +191,16 @@ dt.merge_interval <- function(x,y,by=NULL,...){
         ## printme(df)
         ## printme(FUNC.SCORE)
         .score <- df[[which.col.score]]
-        .score <- FUNC.SCORE(.score)
+        .size <- df[[which.col.size]]
+        .score.v <- get_FUNC.SCORE_vconcat(.score)
+        .size.v <- get_FUNC.SCORE_vconcat(.size)
+        if (!score.weighted){
+          .score <- FUNC.SCORE(.score)
+        } else {
+          .score <- FUNC.SCORE(.score,.size)
+        }
         .score <- as.character(.score)
-        .df <- data.table(..score..=.score)
+        .df <- data.table(score.v=.score.v,size.v=.size.v,..score..=.score)
         .df
       }
       )
@@ -240,27 +243,27 @@ dt.merge_interval <- function(x,y,by=NULL,...){
 
 
 
-
-
-
-
-##' .. content for \description{} (no empty lines) ..
+##' To score `data.region` using `data.score` by subgrouped regions.
 ##'
-##' .. content for \details{} ..
-##' @title 
-##' @param data.region 
-##' @param data.score 
-##' @param by 
-##' @param which.col.score 
-##' @param FUNC.SCORE 
-##' @return 
+##' In computational biology, it scores a set of regions across chromosomes using a set of scores by overlapping genomic coordinates.
+##' @title To score `data.region` using `data.score`
+##' @param data.region a data table of regions to score. i.e. a data table of region information by feature (e.g. gene).
+##' @param data.score a data table of score information over regions. i.e. a data table of score information over regions by sample.
+##' @param by the column, within each level of which `data.region` and `data.score` need be processed individually. (e.g. chromosome)
+##' @param which.col.start the column for the star coordinate of a region for overlapping. (0-based)
+##' @param which.col.end the column for the end coordinate of a region for overlapping. (1-based)
+##' @param which.col.score the column for score
+##' @param which.col.sampleName the column for sample identifiers
+##' @param which.col.regionName the column for region (feature, e.g. gene) identifiers
+##' @param FUNC.SCORE a function to compute a single score given a vector of scores. (e.g. mean or median)
+##'        see \code{\link{get_FUNC.SCORE_mean}}, \code{\link{get_FUNC.SCORE_median}}
+##' @param pcThreads the processing threads. (pcThreads > 1 is not supported on Windows)
+##' @return a data table with region name, coordinates, sample name and scores over a region per sample.
 ##' @author Xiaobei Zhao
 ##' @examples
-##' 
 dt.score_interval <- function(
   data.region,
   data.score,
-
   ##
   by=c("chr"),
   which.col.start="start",
@@ -271,7 +274,9 @@ dt.score_interval <- function(
 
   ##
   FUNC.SCORE=NULL,
+  score.weighted=FALSE,
 
+  ##
   pcThreads=get_DEFAULT__pcThreads()
   ){
   
@@ -330,6 +335,7 @@ dt.score_interval <- function(
       which.col.sampleName=which.col.sampleName,
       which.col.regionName=which.col.regionName,
       FUNC.SCORE=FUNC.SCORE,
+      score.weighted=score.weighted,
       pcThreads=pcThreads
       )
   } else {
@@ -353,6 +359,7 @@ dt.score_interval <- function(
           which.col.sampleName=which.col.sampleName,
           which.col.regionName=which.col.regionName,
           FUNC.SCORE=FUNC.SCORE,
+          score.weighted=score.weighted,
           pcThreads=1
           )
       },
@@ -368,6 +375,7 @@ dt.score_interval <- function(
     ret[[by[1]]] <- as.character(ret[[by[1]]])
   }
 
+  setDT(ret)
   ## printme(str(ret),"dt.score_interval")
   return(ret)
 }

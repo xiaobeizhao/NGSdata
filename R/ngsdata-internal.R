@@ -40,10 +40,10 @@ get_toy__data.region <- function(
   system.file("extdata","data.feature.txt",package="NGSdata",mustWork=TRUE)
 }
 
-##' .. content for \description{} (no empty lines) ..
+##' (TBA)
 ##'
-##' .. content for \details{} ..
-##' @title 
+##' 
+##' @title A wrapper function of `vconcat`
 ##' @return 
 ##' @author
 ##' @examples
@@ -53,10 +53,10 @@ get_FUNC.SCORE_vconcat <- function(x){
   vconcat(x,capsule=FALSE,quote=FALSE)
 }
 
-##' .. content for \description{} (no empty lines) ..
+##' A wrapper function of `mean`, with default of removing NA values
 ##'
-##' .. content for \details{} ..
-##' @title 
+##' 
+##' @title A wrapper function of `mean`
 ##' @param x 
 ##' @return 
 ##' @author 
@@ -66,10 +66,24 @@ get_FUNC.SCORE_mean <- function(x){
   .func(x)
 }
 
-##' .. content for \description{} (no empty lines) ..
+##'  A wrapper function to compute weighted mean, weighted by size
 ##'
-##' .. content for \details{} ..
-##' @title 
+##' 
+##' @title A wrapper function to compute weighted mean
+##' @param x 
+##' @param size 
+##' @return 
+##' @author 
+get_FUNC.SCORE.WEIGHTED_mean <- function(x,size,na.rm=TRUE){
+  .func <- function(x){sum(x*size/sum(size,na.rm=na.rm),na.rm=na.rm)}
+  .func(x)
+}
+
+
+##' A wrapper function of `median`, with default of removing NA values
+##'
+##' 
+##' @title A wrapper function of `median`
 ##' @param x 
 ##' @return 
 ##' @author 
@@ -102,12 +116,27 @@ read.data <- function(
   return(ret)
 }
 
+
+##' Convert data.frame to matrix given formula and 
+##'
+##' 
+##' @title Convert data.frame to matrix
+##' @param x 
+##' @param formula casting formula. See \code{\link{reshape2::acast}} for specifics.
+##' @param which.col.score name of column which stores values for scoring. See `value.var` in \code{\link{reshape2::acast}} for specifics.
+##' @return 
+##' @author
+##' @examples
+##' 
 data.as.matrix <- function(
   x,
   formula=sampleName ~ regionName,
-  which.col.score = "score"
+  which.col.score = "score",
+  ...
   ){
-  ret <- reshape2::acast(x,formula,value.var=which.col.score)
+  x[,regionName:=factor(regionName,levels=unique(regionName))]
+  x[,sampleName:=factor(sampleName,levels=unique(sampleName))]
+  ret <- reshape2::acast(x,formula,value.var=which.col.score,...)
   return(ret)
 }
 
@@ -115,7 +144,7 @@ data.as.matrix <- function(
 ##' `data.region` is a data table of regions to score.
 ##'
 ##' e.g. a data table of region information by feature (e.g. gene).
-##' @title 
+##' @title To prepare `data.region`
 ##' @param x 
 ##' @param which.col.chr 
 ##' @param which.col.start 
@@ -143,7 +172,7 @@ prep_data.region <- function(
   return(x)
 }
 
-##' `data.score` is a data table of score information over regions
+##' `data.score` is a data table of score information over regions.
 ##'
 ##' e.g. a data table of score information over regions by sample.
 ##' @title To prepare `data.score`
