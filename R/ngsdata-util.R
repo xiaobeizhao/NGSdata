@@ -218,48 +218,7 @@ dt.merge_interval <- function(x,y,by=NULL,...){
 
     ##
     ret <- ret[!is.na(ret[[which.col.regionName]])]
-
     
-    if (FALSE){
-      .ddply <- plyr::ddply(
-        tmp,
-        c(which.col.sampleName,which.col.regionName,by,"start.x","end.x"),
-        function(df){
-          ## printme(df)
-          ## printme(FUNC.SCORE)
-          .score <- df[[which.col.score]]
-          .size <- df[[which.col.size]]
-          .score.v <- get_FUNC.SCORE_vconcat(.score)
-          .size.v <- get_FUNC.SCORE_vconcat(.size)
-          if (!score.weighted){
-            .score <- FUNC.SCORE(.score)
-          } else {
-            .score <- FUNC.SCORE(.score,.size)
-          }
-          .score <- as.character(.score)
-          .df <- data.table(score.v=.score.v,size.v=.size.v,..score..=.score)
-          .df
-        }
-        )
-      
-      setDT(.ddply)
-      if (!nrow(.ddply)){
-        .ddply <- cbind(.ddply[,c(by,"start.x","end.x"),with=FALSE],data.table("..score.."=character(),stringsAsFactors=FALSE))
-      }
-      ## printme(colnames(.ddply))
-      ## printme(str(.ddply))
-
-      .merge <- merge(
-        data.region[,unique(c(c(which.col.regionName,by,"start","end"),colnames(data.region)[!colnames(data.region) %in% c(which.col.score,colnames(.ddply))])),with=FALSE],
-        .ddply,
-        by.x=c(which.col.regionName,by,"start","end"),by.y=c(which.col.regionName,by,"start.x","end.x"),
-        all=TRUE,
-        allow.cartesian=TRUE,
-        sort=FALSE
-        )
-      ##
-      ret <- .merge[!is.na(.merge[[which.col.regionName]])]
-    }
   }
 
   ## -- ##
