@@ -163,12 +163,30 @@ prep_data.region <- function(
   if (!all(.colnames %in% colnames(x))){
     sapply(.colnames,stop.not.in.vector,y=colnames(x))
   }
+
+  if (empty2(which.col.regionName)){
+    which.col.regionName <- "regionName"
+    x[,regionName:="region"]
+  } else if (which.col.regionName %in% "auto"){
+    which.col.regionName <- "regionName"
+    x[,regionName:=paste0("region",seq_len(nrow(x)))]    
+  }
+  
+  
+  .colnames <- c(which.col.chr,which.col.start,which.col.end,which.col.regionName)
+  if (!all(.colnames %in% colnames(x))){
+    sapply(.colnames,stop.not.in.vector,y=colnames(x))
+  }
   x <- x[,.colnames,with=FALSE]
-  setnames(x,.colnames,c("chr","start","end","regionName"))
+  setnames(x,.colnames,c("chr","start","end","regionName")[seq_len(length(.colnames))])
+  
+
   x[,chr:=as.character(chr)]
   x[,start:=as.numeric(start)]
   x[,end:=as.numeric(end)]
   x[,regionName:=as.character(regionName)]
+
+  attr(x,"which.col.regionName") <- which.col.regionName
   return(x)
 }
 
@@ -192,16 +210,27 @@ prep_data.score <- function(
   which.col.sampleName = "name",
   which.col.score = "score"
   ){
+
+  if (empty2(which.col.sampleName)){
+    which.col.sampleName <- "sampleName"
+    x[,sampleName:="sample"]
+  } else if (which.col.sampleName %in% "auto"){
+    which.col.sampleName <- "sampleName"
+    x[,sampleName:=paste0("sample",seq_len(nrow(x)))]    
+  }
+  
   .colnames <- c(which.col.chr,which.col.start,which.col.end,which.col.sampleName,which.col.score)
   if (!all(.colnames %in% colnames(x))){
     sapply(.colnames,stop.not.in.vector,y=colnames(x))
   }
   x <- x[,.colnames,with=FALSE]
-  setnames(x,.colnames,c("chr","start","end","sampleName","score"))
+  setnames(x,.colnames,c("chr","start","end","sampleName","score")[seq_len(length(.colnames))])
   x[,chr:=as.character(chr)]
   x[,start:=as.numeric(start)]
   x[,end:=as.numeric(end)]
   x[,sampleName:=as.character(sampleName)]
   x[,score:=as.numeric(score)]
+  
+  attr(x,"which.col.sampleName") <- which.col.sampleName
   return(x)
 }

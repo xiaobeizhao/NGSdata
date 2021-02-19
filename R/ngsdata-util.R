@@ -163,8 +163,19 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   pcThreads
   ){
   
-  which.col.size <- "size"
+  ## printme(list(
+  ##   data.region=head(data.region),
+  ##   data.score=head(data.score),
+  ##   which.col.score=which.col.score,
+  ##   which.col.sampleName=which.col.sampleName,
+  ##   which.col.regionName=which.col.regionName
+  ##   ), ".dt.score_interval")
   
+
+  ## 
+  which.col.size <- "size"
+
+  ##
   if (is.null(data.region)){
     data.region <- data.table()
   } 
@@ -312,6 +323,16 @@ dt.score_interval <- function(
   pcThreads=get_DEFAULT__pcThreads()
   ){
   
+  
+  ## printme(list(
+  ##   data.region=head(data.region),
+  ##   data.score=head(data.score),
+  ##   which.col.score=which.col.score,
+  ##   which.col.sampleName=which.col.sampleName,
+  ##   which.col.regionName=which.col.regionName
+  ##   ), "dt.score_interval")
+  
+
   ## 
   options(scipen=9)
   
