@@ -157,6 +157,9 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   score.weighted,
 
   ##
+  by.coord,
+  
+  ##
   pcThreads
   ){
   
@@ -184,58 +187,84 @@ dt.merge_interval <- function(x,y,by=NULL,...){
     ## ## printme(str(tmp),"dt.score_interval | .dt.score_interval")
     ## stop(save(file="~/save.RData",list=ls(all.names=TRUE))) ## ## load(file="~/save.RData")
 
-    .ddply <- plyr::ddply(
-      tmp,
-      c(which.col.sampleName,which.col.regionName,by,"start.x","end.x"),
-      function(df){
-        ## printme(df)
-        ## printme(FUNC.SCORE)
-        .score <- df[[which.col.score]]
-        .size <- df[[which.col.size]]
-        .score.v <- get_FUNC.SCORE_vconcat(.score)
-        .size.v <- get_FUNC.SCORE_vconcat(.size)
-        if (!score.weighted){
-          .score <- FUNC.SCORE(.score)
-        } else {
-          .score <- FUNC.SCORE(.score,.size)
-        }
-        .score <- as.character(.score)
-        .df <- data.table(score.v=.score.v,size.v=.size.v,..score..=.score)
-        .df
-      }
-      )
-    
-    setDT(.ddply)
-    if (!nrow(.ddply)){
-      .ddply <- cbind(.ddply[,c(by,"start.x","end.x"),with=FALSE],data.table("..score.."=character(),stringsAsFactors=FALSE))
+    if (by.coord){
+      .by.region <- c(which.col.regionName,by,"start.x","end.x")
+    } else {
+      .by.region <- c(which.col.regionName)      
     }
-    ## printme(colnames(.ddply))
-    ## printme(str(.ddply))
-
-    .merge <- merge(
-      data.region[,unique(c(c(which.col.regionName,by,"start","end"),colnames(data.region)[!colnames(data.region) %in% c(which.col.score,colnames(.ddply))])),with=FALSE],
-      .ddply,
-      by.x=c(which.col.regionName,by,"start","end"),by.y=c(which.col.regionName,by,"start.x","end.x"),
-      all=TRUE,
-      allow.cartesian=TRUE,
-      sort=FALSE
-      )
+    
     ##
-    ret <- .merge[!is.na(.merge[[which.col.regionName]])]
+    if (!score.weighted){
+      .sd <- tmp[,c(.SD,.SD[,list(..score..=as.character(FUNC.SCORE(.SD[[which.col.score]])))]),by=c(which.col.sampleName,.by.region)]
+    } else {
+      .sd <- tmp[,c(.SD,.SD[,list(..score..=as.character(FUNC.SCORE(.SD[[which.col.score]],.SD[[which.col.size]])))]),by=c(which.col.sampleName,.by.region)]      
+    }
+    
+    ret <- .sd[!duplicated(.sd[,c(which.col.sampleName,.by.region),with=FALSE]),c(which.col.sampleName,.by.region,"..score.."),with=FALSE]
+    if (by.coord){
+      setnames(ret,c("start.x","end.x"),c("start","end"))
+    }
+
+    ##
+    ret <- ret[!is.na(ret[[which.col.regionName]])]
+
+    
+    if (FALSE){
+      .ddply <- plyr::ddply(
+        tmp,
+        c(which.col.sampleName,which.col.regionName,by,"start.x","end.x"),
+        function(df){
+          ## printme(df)
+          ## printme(FUNC.SCORE)
+          .score <- df[[which.col.score]]
+          .size <- df[[which.col.size]]
+          .score.v <- get_FUNC.SCORE_vconcat(.score)
+          .size.v <- get_FUNC.SCORE_vconcat(.size)
+          if (!score.weighted){
+            .score <- FUNC.SCORE(.score)
+          } else {
+            .score <- FUNC.SCORE(.score,.size)
+          }
+          .score <- as.character(.score)
+          .df <- data.table(score.v=.score.v,size.v=.size.v,..score..=.score)
+          .df
+        }
+        )
+      
+      setDT(.ddply)
+      if (!nrow(.ddply)){
+        .ddply <- cbind(.ddply[,c(by,"start.x","end.x"),with=FALSE],data.table("..score.."=character(),stringsAsFactors=FALSE))
+      }
+      ## printme(colnames(.ddply))
+      ## printme(str(.ddply))
+
+      .merge <- merge(
+        data.region[,unique(c(c(which.col.regionName,by,"start","end"),colnames(data.region)[!colnames(data.region) %in% c(which.col.score,colnames(.ddply))])),with=FALSE],
+        .ddply,
+        by.x=c(which.col.regionName,by,"start","end"),by.y=c(which.col.regionName,by,"start.x","end.x"),
+        all=TRUE,
+        allow.cartesian=TRUE,
+        sort=FALSE
+        )
+      ##
+      ret <- .merge[!is.na(.merge[[which.col.regionName]])]
+    }
   }
 
   ## -- ##
-  setDT(ret)
-  setnames(ret,"start",which.col.start)
-  setnames(ret,"end",which.col.end)
 
-  ## 
-  setnames(ret,"..score..",which.col.score)
-  ## printme(str(ret),"dt.score_interval | `.dt.score_interval`")
-  ## printme(str(ret[[which.col.score]]))
+  ## ## printme(str(ret),"dt.score_interval | `.dt.score_interval`")
+  if (by.coord){
+    setnames(ret,"start",which.col.start)
+    setnames(ret,"end",which.col.end)
+  }
+
   
-  ret[[which.col.score]] <- type.convert(ret[[which.col.score]],as.is=TRUE)
-  setDF(ret)
+  ## 
+  ret[["..score.."]] <- type.convert(ret[["..score.."]],as.is=TRUE)
+  setnames(ret,"..score..",which.col.score)
+  ## ## printme(str(ret),"dt.score_interval | `.dt.score_interval`")  
+  
   
   return(ret)
 }
@@ -277,6 +306,9 @@ dt.score_interval <- function(
   score.weighted=FALSE,
 
   ##
+  by.coord=TRUE,
+  
+  ##
   pcThreads=get_DEFAULT__pcThreads()
   ){
   
@@ -291,17 +323,33 @@ dt.score_interval <- function(
   ## if (is.null(data.region)){ ##TBA
   ##   data.region <-  unoverlap_data.region(data.score[,c(by,which.col.start,which.col.end),with=FALSE],by=by,pcThreads=pcThreads)
   ## }
-
   
   ## -- ##
   .by.score <- as.character(data.score[[by[1]]])
-  .by.region <- as.character(data.region[[by[1]]])
-  .by <- unique(c(.by.region,.by.score))
-  .by <- .by[.by %in% .by.region & .by %in% .by.score]
+  .by.coord <- as.character(data.region[[by[1]]])
+  .by <- unique(c(.by.coord,.by.score))
+  .by <- .by[.by %in% .by.coord & .by %in% .by.score]
+  
   
   data.region <- data.region[as.character(data.region[[by[1]]]) %in% .by]
   data.score <- data.score[as.character(data.score[[by[1]]]) %in% .by]
   
+  ##
+  data.score <- prep_data.score(
+    data.score,
+    which.col.sampleName=which.col.sampleName,
+    which.col.score=which.col.score
+    )
+  which.col.sampleName <- attr(data.score,"which.col.sampleName")
+
+  data.region <- prep_data.region(
+    data.region,
+    which.col.regionName=which.col.regionName
+    )
+  which.col.regionName <- attr(data.region,"which.col.regionName")
+
+  
+  ##
   data.region <- dt.sort_interval(data.region,by,which.col.start=which.col.start,which.col.end=which.col.end)
   data.score <- dt.sort_interval(data.score,by,which.col.start=which.col.start,which.col.end=which.col.end)
 
@@ -336,6 +384,7 @@ dt.score_interval <- function(
       which.col.regionName=which.col.regionName,
       FUNC.SCORE=FUNC.SCORE,
       score.weighted=score.weighted,
+      by.coord=by.coord,
       pcThreads=pcThreads
       )
   } else {
@@ -360,6 +409,7 @@ dt.score_interval <- function(
           which.col.regionName=which.col.regionName,
           FUNC.SCORE=FUNC.SCORE,
           score.weighted=score.weighted,
+          by.coord=by.coord,
           pcThreads=1
           )
       },
@@ -371,15 +421,94 @@ dt.score_interval <- function(
     ## ## ret <- ret[.order,]
   }
   
-  if ( "character" %in% by1.class){
-    ret[[by[1]]] <- as.character(ret[[by[1]]])
+  if (by.coord){
+    if ( "character" %in% by1.class){
+      ret[[by[1]]] <- as.character(ret[[by[1]]])
+    }
   }
 
-  setDT(ret)
   ## printme(str(ret),"dt.score_interval")
   return(ret)
 }
 
+
+## ------------------------------------------------------------------------
+## 
+## ------------------------------------------------------------------------
+
+
+
+dt.mscore_interval <- function(
+  data.region,
+  data.score,
+  ##
+  by=c("chr"),
+  by.x=by,
+  by.y=by,
+  ##
+  which.col.start="start",
+  which.col.end="end",
+  which.col.score="score",
+  which.col.sampleName="sampleName",
+  which.col.regionName="regionName",
+
+  ##
+  FUNC.SCORE=NULL,
+
+  ##
+  by.coord=TRUE,
+  
+  ##
+  pcThreads=get_DEFAULT__pcThreads()
+  ){
+  
+  .data.region <- copy(data.region)
+  .data.score <- copy(data.score)
+  
+  setnames(.data.region,by.x,by)
+  setnames(.data.score,by.y,by)
+
+  by <- by[!by %in% c(which.col.start,which.col.end,which.col.score,which.col.sampleName,which.col.regionName)]
+
+  ## ## printme(list(data.region=head(data.region),by.x=by.x,data.score=head(data.score),by.y=by.y),"dt.mscore_interval")
+  ##
+  ## ## stop(save(file="~/.save.RData",list=ls(all.names=TRUE))) # load(file="~/.save.RData")
+  
+  ## 
+  n <- 0
+  for (e in which.col.score){
+    n <- n+1
+    itmp <- dt.score_interval(
+      data.region=.data.region,
+      data.score=.data.score,
+
+      ##
+      by=by,
+      which.col.start=which.col.start,
+      which.col.end=which.col.end,
+      which.col.score=e,
+      which.col.sampleName=which.col.sampleName,
+      which.col.regionName=which.col.regionName,
+      
+      ##
+      FUNC.SCORE=FUNC.SCORE,
+      
+      ##
+      by.coord=by.coord,
+      
+      ##
+      pcThreads=pcThreads
+      )
+    if (n==1){
+      tmp <- copy(itmp)
+    } else {
+      tmp <- cbind(tmp,itmp[,ncol(itmp),with=FALSE])
+    }
+  }
+  ret <- tmp
+  ## printme(str(ret),"dt.mscore_interval")
+  return(ret)
+}
 
 
 
