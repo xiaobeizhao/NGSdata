@@ -162,7 +162,20 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   ##
   pcThreads
   ){
+
+
   
+  .colnames.region <- c(by,which.col.start,which.col.end,which.col.regionName)
+  if (!all(.colnames.region %in% colnames(data.region))){
+    sapply(.colnames.region,stop.not.in.vector,y=colnames(data.region))
+  }
+
+  .colnames.score <- c(by,which.col.start,which.col.end,which.col.score,which.col.sampleName)
+  if (!all(.colnames.score %in% colnames(data.score))){
+    sapply(.colnames.score,stop.not.in.vector,y=colnames(data.score))
+  }
+
+  ## -- ##
   ## printme(list(
   ##   data.region=head(data.region),
   ##   data.score=head(data.score),
@@ -171,7 +184,6 @@ dt.merge_interval <- function(x,y,by=NULL,...){
   ##   which.col.regionName=which.col.regionName
   ##   ), ".dt.score_interval")
   
-
   ## 
   which.col.size <- "size"
 
@@ -240,6 +252,82 @@ dt.merge_interval <- function(x,y,by=NULL,...){
 }
 
 
+FUNC__by <- function(
+  e,
+  by
+  ){
+  as.character(e[[by[1]]])
+}
+
+
+FUNC__by.class <- function(
+  e,
+  by
+  ){
+  class(e[[by[1]]])
+}
+
+
+dl.get_by.comm <- function(
+  x.list,
+  by=c("chr")
+  ){
+  .by.list <- lapply(x.list,FUNC__by,by=by)
+  .by.comm <- Reduce(intersect,.by.list)  
+  ret <- .by.comm
+  return(ret)
+}
+
+
+dl.get_by.is.character <- function(
+  x.list,
+  by=c("chr")
+  ){
+  .by.is.character <- lapply(x.list,function(e){is.character(e[[by[1]]])})
+  ret <- unlist(.by.is.character)
+  return(ret)
+}
+
+
+dl.get_by.is.factor <- function(
+  x.list,
+  by=c("chr")
+  ){
+  .by.is.factor <- lapply(x.list,function(e){is.factor(e[[by[1]]])})
+  ret <- unlist(.by.is.factor)
+  return(ret)
+}
+
+
+
+dl.common_by <- function(
+  x.list,
+  by=c("chr")  
+  ){
+  .by.comm <- dl.get_by.comm(x.list=x.list,by=by)
+  ret <- lapply(x.list,function(e){e[FUNC__by(e,by=by) %in% .by.comm]})
+  return(ret)  
+}
+
+
+
+dl.factor_by <- function(
+  x.list,
+  by=c("chr")  
+  ){
+  .by.comm <- dl.get_by.comm(x.list=x.list,by=by)
+  .by.is.factor <- dl.get_by.is.factor(x.list=x.list,by=by)
+  ## ## .by.is.character <- dl.get_by.is.character(x.list=x.list,by=by)
+
+  if (!all(.by.is.factor)){
+    .levels <- gtools::mixedsort(.by.comm)
+    ret <- lapply(x.list,function(e){e[[by[1]]] <- factor(as.character(e[[by[1]]]),levels=.levels); return(e)})
+  } else {
+    ret <- x.list
+  }
+  return(ret)
+}
+  
 
 
 ##' To score `data.region` using `data.score` by subgrouped regions.
@@ -282,7 +370,6 @@ dt.score_interval <- function(
   pcThreads=get_DEFAULT__pcThreads()
   ){
   
-  
   ## printme(list(
   ##   data.region=head(data.region),
   ##   data.score=head(data.score),
@@ -299,49 +386,62 @@ dt.score_interval <- function(
     FUNC.SCORE <- get_FUNC.SCORE_vconcat
   }
   
+  ## ## stop(save(file="~/save.RData",list=ls(all.names=TRUE))) # load(file="~/save.RData")
+  
+  
   
   ## if (is.null(data.region)){ ##TBA
   ##   data.region <-  unoverlap_data.region(data.score[,c(by,which.col.start,which.col.end),with=FALSE],by=by,pcThreads=pcThreads)
   ## }
   
   ## -- ##
-  .by.score <- as.character(data.score[[by[1]]])
-  .by.coord <- as.character(data.region[[by[1]]])
-  .by <- unique(c(.by.coord,.by.score))
-  .by <- .by[.by %in% .by.coord & .by %in% .by.score]
-  
-  
-  data.region <- data.region[as.character(data.region[[by[1]]]) %in% .by]
-  data.score <- data.score[as.character(data.score[[by[1]]]) %in% .by]
-  
-  ##
+  data.list0 <- data.list <- list(data.region,data.score)
+  data.list <- dl.common_by(x.list=data.list,by=by)
+    
+  data.region <- data.list[[1]]
+  data.score <- data.list[[2]]
+
+  ## -- ##
   data.score <- prep_data.score(
     data.score,
+    which.col.chr=by, 
+    which.col.start=which.col.start,
+    which.col.end=which.col.end,
     which.col.sampleName=which.col.sampleName,
     which.col.score=which.col.score
     )
   which.col.sampleName <- attr(data.score,"which.col.sampleName")
+  which.col.score <- attr(data.score,"which.col.score")
 
   data.region <- prep_data.region(
     data.region,
+    which.col.chr=by, 
+    which.col.start=which.col.start,
+    which.col.end=which.col.end,
     which.col.regionName=which.col.regionName
     )
   which.col.regionName <- attr(data.region,"which.col.regionName")
 
   
+  
   ##
-  data.region <- dt.sort_interval(data.region,by,which.col.start=which.col.start,which.col.end=which.col.end)
-  data.score <- dt.sort_interval(data.score,by,which.col.start=which.col.start,which.col.end=which.col.end)
+  .by <- .which.col.chr <- c("chr")
+  .which.col.start <- "start"
+  .which.col.end <- "end"
+  .which.col.score <- "score"
+  .which.col.sampleName <- "sampleName"
+  .which.col.regionName <- "regionName"
+  
+  data.region <- dt.sort_interval(data.region,by=.which.col.chr,which.col.start=.which.col.start,which.col.end=.which.col.end)
+  data.score <- dt.sort_interval(data.score,by=.which.col.chr,which.col.start=.which.col.start,which.col.end=.which.col.end)
 
   
   ## -- ##
-  
-  by1.class <- class(data.region[[by[1]]])
-  if (!is.factor(data.score[[by[1]]]) | !is.factor(data.region[[by[1]]])){
-    .levels <- gtools::mixedsort(.by)
-    data.region[[by[1]]] <- factor(data.region[[by[1]]],levels=.levels)
-    data.score[[by[1]]] <- factor(data.score[[by[1]]],levels=.levels)
-  }
+  data.list <- list(data.region,data.score)
+  .by.is.character <- dl.get_by.is.character(x.list=data.list,by=.by)
+  data.list <- dl.factor_by(x.list=data.list,by=.by)
+  data.region <- data.list[[1]]
+  data.score <- data.list[[2]]
   
   
   ## -- ##
@@ -356,20 +456,20 @@ dt.score_interval <- function(
     ret <- .dt.score_interval(
       data.region=data.region,
       data.score=data.score,
-      by=by,
-      which.col.start=which.col.start,
-      which.col.end=which.col.end,
-      which.col.score=which.col.score,
-      which.col.sampleName=which.col.sampleName,
-      which.col.regionName=which.col.regionName,
+      by=.by,
+      which.col.start=.which.col.start,
+      which.col.end=.which.col.end,
+      which.col.score=.which.col.score,
+      which.col.sampleName=.which.col.sampleName,
+      which.col.regionName=.which.col.regionName,
       FUNC.SCORE=FUNC.SCORE,
       score.weighted=score.weighted,
       by.coord=by.coord,
       pcThreads=pcThreads
       )
   } else {
-    data.region.list <- split(data.region,as.list(data.region[,by[1],with=FALSE]))##XB
-    data.score.list <- split(data.score,as.list(data.score[,by[1],with=FALSE]))##XB
+    data.region.list <- split(data.region,as.list(data.region[,.by[1],with=FALSE]))##XB
+    data.score.list <- split(data.score,as.list(data.score[,.by[1],with=FALSE]))##XB
 
     ##  
     tmp <- parallel::mclapply(
@@ -381,12 +481,12 @@ dt.score_interval <- function(
         .dt.score_interval(
           data.region=data.region,
           data.score=data.score,
-          by=by,
-          which.col.start=which.col.start,
-          which.col.end=which.col.end,
-          which.col.score=which.col.score,
-          which.col.sampleName=which.col.sampleName,
-          which.col.regionName=which.col.regionName,
+          by=.by,
+          which.col.start=.which.col.start,
+          which.col.end=.which.col.end,
+          which.col.score=.which.col.score,
+          which.col.sampleName=.which.col.sampleName,
+          which.col.regionName=.which.col.regionName,
           FUNC.SCORE=FUNC.SCORE,
           score.weighted=score.weighted,
           by.coord=by.coord,
@@ -397,16 +497,19 @@ dt.score_interval <- function(
       )
 
     ret <- do.call(rbind,tmp)
-    ## ## .order <- do.call(order,as.list(ret[,c(by,"start","end"),with=FALSE]))
-    ## ## ret <- ret[.order,]
   }
   
   if (by.coord){
-    if ( "character" %in% by1.class){
-      ret[[by[1]]] <- as.character(ret[[by[1]]])
+    if (any(.by.is.character)){
+      ret[[.by[1]]] <- as.character(ret[[.by[1]]])
     }
   }
 
+  
+  setnames(ret,.which.col.regionName,which.col.regionName)
+  setnames(ret,.which.col.sampleName,which.col.sampleName)
+  setnames(ret,.which.col.score,which.col.score)
+  
   ## printme(str(ret),"dt.score_interval")
   return(ret)
 }

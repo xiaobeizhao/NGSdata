@@ -30,6 +30,7 @@ stop.not.in.vector <- function(
 
 
 
+
 get_toy__data.score <- function(
   ){
   system.file("extdata","data.sample.txt",package="NGSdata",mustWork=TRUE)
@@ -134,8 +135,12 @@ data.as.matrix <- function(
   which.col.score = "score",
   ...
   ){
-  x[,regionName:=factor(regionName,levels=unique(regionName))]
-  x[,sampleName:=factor(sampleName,levels=unique(sampleName))]
+  stop.not.in.vector(which.col.score,colnames(x))
+  .vars <- all.vars(formula)
+  for (e in .vars){
+    stop.not.in.vector(e,colnames(x))
+    x[[e]] <- factor(x[[e]],levels=unique(x[[e]]))
+  }
   ret <- reshape2::acast(x,formula,value.var=which.col.score,...)
   return(ret)
 }
@@ -164,7 +169,7 @@ prep_data.region <- function(
     sapply(.colnames,stop.not.in.vector,y=colnames(x))
   }
 
-  if (empty2(which.col.regionName)){
+  if (!length(which.col.regionName)){
     which.col.regionName <- "regionName"
     x[,regionName:="region"]
   } else if (which.col.regionName %in% "auto"){
@@ -211,7 +216,7 @@ prep_data.score <- function(
   which.col.score = "score"
   ){
 
-  if (empty2(which.col.sampleName)){
+  if (!length(which.col.sampleName)){
     which.col.sampleName <- "sampleName"
     x[,sampleName:="sample"]
   } else if (which.col.sampleName %in% "auto"){
@@ -232,5 +237,6 @@ prep_data.score <- function(
   x[,score:=as.numeric(score)]
   
   attr(x,"which.col.sampleName") <- which.col.sampleName
+  attr(x,"which.col.score") <- which.col.score
   return(x)
 }
